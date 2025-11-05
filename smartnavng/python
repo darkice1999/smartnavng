@@ -1,0 +1,80 @@
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.sql import func
+from geoalchemy2 import Geometry
+
+db = SQLAlchemy()
+
+class RoadSegment(db.Model):
+    __tablename__ = 'road_segments'
+    
+    id = Column(Integer, primary_key=True)
+    segment_id = Column(String(50), unique=True, nullable=False)
+    city = Column(String(50), nullable=False)
+    road_name = Column(String(200))
+    length_meters = Column(Float, nullable=False)
+    base_speed_kmh = Column(Float, default=30.0)
+    geometry = Column(Geometry('LINESTRING', srid=4326))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    def to_geojson(self):
+        return {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'LineString',
+                'coordinates': self.get_coordinates()
+            },
+            'properties': {
+                'segment_id': self.segment_id,
+                'road_name': self.road_name,
+                'city': self.city,
+                'length_meters': self.length_meters,
+                'base_speed_kmh': self.base_speed_kmh
+            }
+        }
+    
+    def get_coordinates(self):
+        # Simplified - in real implementation, use ST_AsGeoJSON
+        return []
+
+class Alert(db.Model):
+    __tablename__ = 'alerts'
+    
+    id = Column(Integer, primary_key=True)
+    alert_id = Column(String(50), unique=True, nullable=False)
+    alert_type = Column(String(50), nullable=False)  # construction, accident, flood, etc.
+    severity = Column(String(20), nullable=False)  # low, medium, high
+    description = Column(String(500))
+    location = Column(Geometry('POINT', srid=4326))
+    affected_segments = Column(JSON)  # List of segment_ids
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    def to_geojson(self):
+        return {
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': self.get_coordinates()
+            },
+            'properties': {
+                'alert_id': self.alert_id,
+                'type': self.alert_type,
+                'severity': self.severity,
+                'description': self.description,
+                'is_active': self.is_active
+            }
+        }
+    
+    def get_coordinates(self):
+        return []
+
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True)
+    username = Column(String(80), unique=True, nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
